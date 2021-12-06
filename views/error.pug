@@ -1,0 +1,10 @@
+extends layout.pug
+
+block content
+  h1 Server Error
+  h2 Sorry! There was an unexpected error on the server.
+  p.monospace_message Status: #{error.status}
+  p.monospace_message #{error.stack}
+  
+  p
+    a.button(href="/books") Home
