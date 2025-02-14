@@ -2,7 +2,7 @@ var express = require('express');
 var router = express.Router();
 
 //holds the amount of books to view per page
-const pagination = 6;
+//const pagination = 6;
 
 //book model
 const Book = require('../models').Book;
@@ -104,90 +104,85 @@ router.post('/books/:id', (req, res) => {
   );
 });
 
-
-//home route - also displays search results!!
 router.get('/books', (req, res) => {
-
-  //get current page and search from parameters
-	var page = parseInt(req.query.page);
-	var search = req.query.search;
-
-  //default page to 1 if not provided
+	// Grab the page param, default to 1 if not specified
+	let page = parseInt(req.query.page);
 	if (isNaN(page)) { page = 1 }
-
-	var findOptions = {}
-
-	//search options!
-	if (search != undefined) {
-    //add %'s can be anywhere within the string
-    //search = `%${search}%`; <-- creates a bug in the search bar
-
-    //apply the WHERE clause
-		findOptions.where = {
-			[SqlOp.or]: [
-				{ title:   {[SqlOp.like]: `%${search}%`}},
-				{ author:  {[SqlOp.like]: `%${search}%`}},
-				{ genre:   {[SqlOp.like]: `%${search}%`}},
-				{ year:    {[SqlOp.like]: `%${search}%`}}
-			]
-    }
+  
+	// Grab the resultsPerPage from the query string
+	// Default to 6 if not present
+	let pagination = parseInt(req.query.resultsPerPage);
+	if (isNaN(pagination) || pagination < 1) {
+	  pagination = 5;
 	}
-
-	//first find all books within the search options!!
+  
+	// Grab any search param
+	let search = req.query.search;
+  
+	let findOptions = {};
+  
+	// If user typed something in the search bar, apply a WHERE clause
+	if (search) {
+	  findOptions.where = {
+		[SqlOp.or]: [
+		  { title:  { [SqlOp.like]: `%${search}%` } },
+		  { author: { [SqlOp.like]: `%${search}%` } },
+		  { genre:  { [SqlOp.like]: `%${search}%` } },
+		  { year:   { [SqlOp.like]: `%${search}%` } }
+		]
+	  }
+	}
+  
+	// Now find the total results for pagination math
 	Book.findAll(findOptions).then((books) => {
-
-		//calculate pagination buttons needed, round up to the next whole number
-		var numberOfResults = books.length
-		var buttonsNeeded = Math.ceil(numberOfResults/pagination);
-
-
-		//this array will hold our pagination buttons!
-		var pageButtons = [];
-
-		//previous page button
-		pageButtons.push({ display: "<", destination: (page - 1), disabled:true });
-		//enable beyond page 1
-		if (page > 1) {
-			pageButtons[0].disabled = false;
-		}
-
-		//add all required pagination buttons!
-		for(let i = 0; i < buttonsNeeded; i++) {
-			pageButtons.push({ display: (i + 1), destination: (i + 1), disabled:false });
-			//disable active page
-			if ((i + 1) == page) {
-				pageButtons[i + 1].disabled = true;
-			}
-		}
-
-		//next page button
-		pageButtons.push({ display: ">", destination: (page + 1), disabled:true });
-		//enable before last page
-		if (page < buttonsNeeded) {
-			pageButtons[buttonsNeeded + 1].disabled = false;
-		}
-
-		//now lets offset the results based on which page we are on ;)
-		findOptions.offset = (page-1) * pagination;
-		//limit the results per page
-		findOptions.limit = pagination;
-
-		//let's re-run the promise using the offset we adjusted
-		Book.findAll(findOptions).then((books) => {
-
-			var renderOptions = { books: books, title: 'Books' }
-
-			//enter a blank search if empty
-			renderOptions.search = search || ''
-			//add in the page buttons to the render options
-			renderOptions.paginationButtons = pageButtons;
-			renderOptions.numberOfResults = numberOfResults;
-			//render the page!!
-			res.render('index', renderOptions);
-
+	  let numberOfResults = books.length;
+	  let buttonsNeeded   = Math.ceil(numberOfResults / pagination);
+  
+	  // Build your pagination buttons
+	  let pageButtons = [];
+  
+	  // Add previous button (default disabled if page=1)
+	  pageButtons.push({
+		display: "<",
+		destination: page - 1,
+		disabled: page <= 1
+	  });
+  
+	  // Create numbered page buttons
+	  for (let i = 1; i <= buttonsNeeded; i++) {
+		pageButtons.push({
+		  display: i.toString(),
+		  destination: i,
+		  disabled: i === page
 		});
+	  }
+  
+	  // Add next button (default disabled if at last page)
+	  pageButtons.push({
+		display: ">",
+		destination: page + 1,
+		disabled: page >= buttonsNeeded
+	  });
+  
+	  // Update findOptions for offset & limit
+	  findOptions.offset = (page - 1) * pagination;
+	  findOptions.limit  = pagination;
+  
+	  // Fetch the 'paged' records
+	  Book.findAll(findOptions).then((books) => {
+		res.render('index', {
+		  title: 'Books',
+		  books,             // your paged data
+		  search: search || '', 
+		  paginationButtons: pageButtons,
+		  numberOfResults,
+		  pagination // might want to pass the chosen page size to the template if you want to highlight it in your <select>
+		});
+	  });
 	});
-});
+  });
+  
+
 
 // /* GET home page. */
 // router.get('/', function(req, res, next) {

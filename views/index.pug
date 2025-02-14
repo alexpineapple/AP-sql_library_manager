@@ -38,9 +38,50 @@ block content
   
   each button in paginationButtons
     if button.disabled
-      a.button(href=`/books?page=${button.destination}&search=${search}` class='disabled' onclick='return false;') #{button.display}
+      a.button(href=`/books?page=${button.destination}&search=${search}&resultsPerPage=${pagination}` class='disabled' onclick='return false;')
+        | #{button.display}
     else
-      a.button(href=`/books?page=${button.destination}&search=${search}`) #{button.display}
+      a.button(href=`/books?page=${button.destination}&search=${search}&resultsPerPage=${pagination}`)
+        | #{button.display}
+
     
 
-  
+  p
+    form#resultsPerPageForm(method='get' action='/books')
+      label(for='resultsPerPage') Results per page:
+      select(name='resultsPerPage' id='resultsPerPage' onchange='updateResultsPerPage()')
+        option(value='5', selected=(pagination==5)) 5
+        option(value='10', selected=(pagination==10)) 10
+        option(value='25', selected=(pagination==25)) 25
+
+
+
+  script.
+    function updateResultsPerPage() {
+      // 1) Grab the <form> and the <select> elements
+      var form = document.getElementById('resultsPerPageForm');
+      var select = document.getElementById('resultsPerPage');
+
+      // 2) Get the user's choice from the dropdown
+      var selectedValue = select.options[select.selectedIndex].value;
+
+      // 3) Read the current search params from the URL, e.g. "?page=2&search=the"
+      var params = new URLSearchParams(window.location.search);
+
+      // 4) Set (or replace) the "resultsPerPage" parameter with the new value
+      params.set('resultsPerPage', selectedValue);
+
+      // (Optional) If you want to reset the page to 1 whenever the user changes the dropdown
+      params.set('page', 1);
+
+      // 5) Build the final URL (pathname + query string)
+      //    e.g. "/books?page=2&search=the&resultsPerPage=10"
+      var newUrl = window.location.pathname + '?' + params.toString();
+
+      // 6) Set the form's action to that URL, then submit
+      form.action = newUrl;
+      form.submit();
+    }
+
+
+
